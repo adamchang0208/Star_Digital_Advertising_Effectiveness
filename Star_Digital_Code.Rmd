@@ -1,0 +1,171 @@
+---
+title: "Star Digital Case"
+subtitle: "Group 16"
+author: " Andrew Gillson, Hengzhen Chang, Hui-Lun Kuo, Siva Kallur, Yuqing Zhang"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Preparation
+
+### 1) Install packages
+
+```{r results='hide', message=FALSE, warning=FALSE}
+suppressPackageStartupMessages({
+  library(plyr) # For descriptive visualization
+  library(MESS) # For statistical power test
+})
+```
+
+### 2) Load the data
+
+```{r message=FALSE, warning=FALSE}
+setwd("M:\\MSBA6440 Data-driven Experimentation and Measurement\\Assignment1")
+star <- read.csv("starDigital.CSV")
+```
+
+### 3) View the column names and take the first 5 rows as sample
+```{r message=FALSE, warning=FALSE}
+View(star)
+names(star)
+head(star)
+```
+
+## Step 1: Basic visualization and summary statistic
+```{r message=FALSE, warning=FALSE}
+barplot(table(star$purchase),
+        main = "Number of purchases by Test and Control Groups",
+        xlab="Groups",
+        names.arg=c("Control Group", "Test Group"))
+
+barplot(table(star$test),
+        main = "Number of members in Test and Control Groups",
+        xlab="Groups",
+        names.arg=c("Control Group", "Test Group"))
+```
+
+```{r message=FALSE, warning=FALSE}
+count(star, 'purchase')
+count(star, 'test')
+```
+
+As we can see from the bar plots and the count results above, 10 percent of the consumers were placed in the control group, and 90 percent were placed in the test group.
+
+
+
+# Step 2: Data manipulation
+
+In order to understand whether increasing the frequency of advertising increases the probability of purchase, we constructed a new variable -- total_impression, which is the sum of impresseions on website 1-5 and impressions on website 6.
+
+```{r message=FALSE, warning=FALSE}
+# Construct a new column: Total Impression
+star$total_impression <- star$sum1to5 + star$imp_6
+```
+
+
+# Step 3: Randomization check
+
+To interpret the experiment result, discover the effect of treatment, and make sure that the experiment result is nearly uncorrelated with random error, we conducted a randomization check on the sample. 
+
+The number of impression is indicative of user watching habit. A user who generally pays more attention to advertisements will receive a greater number of impressions compared to a user who ignores advertisement. As a result, the effect of a same advertisement will be different on these two subjects. By running a t-test of total number of impressions on test and control groups, we were checking whether unobserved confounds such as user watching habit might be a concern when we interpret the results of the experiment.
+
+Similarly, by running a t-test of total number of impressions from website 1-5 on test and control, as well as a t-test of total number of impression from website on test and control, we were making sure that the users have similar watching habits on website 1-5 and website 6.
+
+```{r message=FALSE, warning=FALSE}
+t.test(data=star,total_impression~test)
+t.test(data=star,sum1to5~test)
+t.test(data=star,imp_6~test)
+```
+
+According to the result, the p-values of these T test are very high (0.8987/0.943/0.666), telling us that we should not reject the null hypothesis, which is that the means of two groups are the same. In other words, user watching habits are not different across test and control groups.  
+
+Therefore, we can conclude that the selection of test/control is randomized. 
+
+
+
+# Step 4: Discover the advertising effect
+
+To determine whether online advertising is effective for Star Digital, we ran a t-test of purchase on the test and control group. The results of t-test would tell us whether there is a siginifcant difference in probability of purchase between two groups.
+
+```{r message=FALSE, warning=FALSE}
+t.test(data=star,purchase~test)
+```
+
+According to the t-test result, the purchase probability in test group is 50.5%, and the purchase probability in control group is 48.6%. The p-value 0.06139 told us that the t-test result is significant. There is around 6.1% probability of wrong conclusion.
+
+The t-test result told us that given the treatment, the probability of purchase will increase by approximately 2%.
+
+
+
+# Step 5. Statistical power analysis
+
+To understand how much statistical power this experiment has, we did a statistical power analysis using the captured delta value -- the difference between the average purchase probabilities in the two groups, 0.505-0.486 in this case.
+
+The statistical power in an experiment is how likely the experiment is to distinguish an actual effect from one of chance. It's the likelihood that the test is correctly rejecting the null hypothesis. For example, an experiment that has an 80% power means that the study has an 80% chance of the test having significant results.
+
+We used conventional power value 0.8 and significance level (alpha) 0.1 in the analysis.   
+
+```{r message=FALSE, warning=FALSE}
+power_t_test(n=NULL,type=c("two.sample"),
+             alternative="two.sided",
+             power=0.8,
+             sig.level=0.1,
+             delta=0.505-0.486)
+```
+
+The power analysis above told us that if we want to discover a 0.019 difference in the average purchase probability given a significant level of 0.1 and a power value of 0.8, we need a sample size of 34253 in the experiment. However, in the experiment, we had only 2656 observations in the control group and 22647 observations in the test group. The sample size in the actual experiment is smaller than the required sample size according to the power analysis result. Therefore, the experiment was underpowered. In order to make the results of this experiment conclusive, we need increase the sample size.
+
+
+# Step 6: Discover effects of increasing advertising frequency
+
+To discover whether increasing the frequency of advertising increases the probability of purchase, we run a linear regression of purchase on test and total number of impressions.
+
+```{r message=FALSE, warning=FALSE}
+hist(star$total_impression)
+```
+
+```{r message=FALSE, warning=FALSE}
+hist(log(star$total_impression))
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+summary(glm(data=star,purchase~test*log(total_impression + 1)))
+```
+
+Given the result above, for users in the control group, 1 unit of increase in the total number of impression will lead to  0.01 (1%) increase in probabilty of purchase.
+
+Increasing 1 impression will increase 0.001 (0.1%) probability of purchase for users in the test group as compared to the users in the control group.
+
+Therefore, increasing the frequency of advertising does help to increase the probability of purchase. 
+
+
+
+# Step 7: Identifying the right option (channel options sites 1to5 or site 6)
+
+To identify which sites should star digital advertise on, in particular, should it put its advertising dollars in site 6 or sites 1 through 5, we ran a regression of purchase on impressions on site 6 and sites 1 through 5 along with the test interaction.
+
+```{r}
+summary(lm(data=star, purchase ~ test*(sum1to5+imp_6)))
+```
+
+From the results above, we can see that advertising in sites 1 through 5 is a better option for Star Digital than advertising on site 6.
+
+But the range of impressions in sites 1 through 5 and site 6 is large, hence the above results might not be the best estimate of likelihood of purchase. Hence we used log values for impressions. Below are the results:
+
+
+```{r}
+summary(lm(data=star, purchase ~ test*(log(sum1to5+1)+log(imp_6+1))))
+```
+
+From the results above, we can see that advertising in sites 1 through 5 is a better option for Star Digital than advertising on site 6.
+
+Looking at the co-efficients here, a 1% increase in impression in sites 1 through 5 is going to increase the possibility of purchase by 0.1% (log(1.01) x 0.103791 X 100). Similary for site 6 a 1% increase in the number of impressions increase the possibility of purchase by 0.014% (log(1.01) x 0.0141 * 100).
+
+A purchase results in a contribution of $1,200 for star digital. So a 1% increase in impressions costs $0.25 and $0.20 in sites 1 through 5 and site 6 which is likely to generate $1.2 (0.1% of $1,200) and $0.168 respectively which makes advertising in sites 1 through 5 more attractive option for Start Digital.
+
