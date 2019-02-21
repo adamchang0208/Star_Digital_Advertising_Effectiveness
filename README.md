@@ -1,6 +1,8 @@
 # Star_Digital_Advertising_Effectiveness
-Star Digial Case: Assessing the effectiveness of display advertising
 
+Star Digial Case: Assessing the effectiveness of display advertising
+This project is based on a case study by Stanford Graduate School of Business
+https://www.gsb.stanford.edu/faculty-research/case-studies/star-digital
 
 
 ## I. Executive Summary
